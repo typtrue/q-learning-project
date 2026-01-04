@@ -3,9 +3,10 @@ import scipy.integrate as sci
 
 class QLD(object):
     """j"""
-    def __init__(self, A: np.ndarray, B: np.ndarray, T_x : float, T_y : float) -> None:
+    def __init__(self, A: np.ndarray, B: np.ndarray, T_x : float, T_y : float, *, verbose=True) -> None:
         self.mats = (A, B)
         self.T = (T_x, T_y)
+        self.verbose = verbose
 
     def qld_eq(self, player : int, x : np.ndarray, y : np.ndarray) -> np.ndarray:
         """
@@ -25,10 +26,15 @@ class QLD(object):
         res : np.ndarray
             Time derivative of player's choices at current timestep.
         """
+
         s = (x, y)
         mats = self.mats
         T = self.T
 
+        if not np.isclose(x[0] + x[1], 1):
+            raise ValueError(f"x must be a probability vector, got {x}")
+        if not np.isclose(y[0] + y[1], 1):
+            raise ValueError(f"y must be a probability vector, got {y}")
         if (player != 0 and player != 1):
             raise ValueError(f"player must be 0 or 1, got {player}")
         if len(x) != mats[0].shape[1]:
@@ -49,9 +55,13 @@ class QLD(object):
         # p2_i = -x^T M_p y + T_p sum_{j=1}^n s_j ln(s_j / s_i)
         p2 = np.array([-x.T @ mats[player] @ y + T[player] * sum([sj * np.log(sj / si) for sj in s[player]]) for si in s[player]])
 
+        if any(np.isnan(p2)):
+            print(f"s: {s[player]}")
+            raise ValueError
+
         return s[player] * (p1 + p2)
     
-    def simulate(self, dt : float, *, maxits : int = 10000, tol : float = 10**(-10), x0 : np.ndarray = None, y0 : np.ndarray = None):
+    def simulate(self, dt : float, *, maxits : int = 10000, tol : float = 10**(-6), x0 : np.ndarray = None, y0 : np.ndarray = None):
         """
         
         """
@@ -81,7 +91,7 @@ class QLD(object):
             ys.append(1.0 * y0)
             t += dt
             ts.append(t)
-            if (i + 1) % 100 == 0:
+            if (i + 1) % 100 == 0 and self.verbose:
                 print(f"{i+1}/{maxits}")
 
         return xs, ys, ts
