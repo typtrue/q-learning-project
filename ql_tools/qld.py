@@ -31,9 +31,9 @@ class QLD(object):
         mats = self.mats
         T = self.T
 
-        if not np.isclose(x[0] + x[1], 1):
+        if not np.isclose(sum(x), 1):
             raise ValueError(f"x must be a probability vector, got {x}")
-        if not np.isclose(y[0] + y[1], 1):
+        if not np.isclose(sum(y), 1):
             raise ValueError(f"y must be a probability vector, got {y}")
         if (player != 0 and player != 1):
             raise ValueError(f"player must be 0 or 1, got {player}")
@@ -65,15 +65,18 @@ class QLD(object):
         """
         
         """
-        n = self.mats[0].shape
+        n = self.mats[0].shape[0]
 
         if x0 is None:
             x0 = np.ones(n[1]) / n[1]
         if y0 is None:
             y0 = np.ones(n[0]) / n[0]
 
-        xs = [1.0 * x0]
-        ys = [1.0 * y0]
+        xs = np.zeros((n, maxits+1))
+        ys = np.zeros((n, maxits+1))
+
+        xs[:, 0] = x0
+        ys[:, 0] = y0
         ts = [0]
         t = 0
 
@@ -82,19 +85,22 @@ class QLD(object):
             dy = self.qld_eq(1, x0, y0)
 
             if np.linalg.norm(dx) < tol and np.linalg.norm(dy) < tol:
-                print(f"converged after {i} iterations!")
+                if self.verbose:
+                    print(f"converged after {i} iterations!")
                 break
 
             x0 += dx * dt
             y0 += dy * dt
-            xs.append(1.0 * x0)
-            ys.append(1.0 * y0)
+
+            xs[:, i+1] = x0
+            ys[:, i+1] = y0
+
             t += dt
             ts.append(t)
             if (i + 1) % 100 == 0 and self.verbose:
                 print(f"{i+1}/{maxits}")
 
-        return xs, ys, ts
+        return xs[:, :i+1], ys[:, :i+1], ts
 
     def equilibria(self):
         raise NotImplementedError
