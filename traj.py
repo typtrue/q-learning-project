@@ -9,20 +9,21 @@ def signif(x, p):
     mags = 10 ** (p - 1 - np.floor(np.log10(x_positive)))
     return np.round(x * mags) / mags
 
-def plot_helper(sys, x01, x02, x03, y01, y02, y03, multistage=False):
+def plot_helper(sys, x01, x02, x03, y01, y02, y03, filename, multistage=False):
     if multistage:
-        xt1, yt1, _ = sys.simulate_multistage(0.1, x0=x01, y0=y01)
-        xt2, yt2, _ = sys.simulate_multistage(0.1, x0=x02, y0=y02)
-        xt3, yt3, _ = sys.simulate_multistage(0.1, x0=x03, y0=y03)
+        # THIS IS A HORRIBLE WAY OF DOING THIS! FIX LATER
+        xt1, yt1, _ = sys.simulate_multistage(0.1, maxits=200, x0=1.0*x01, y0=1.0*y01)
+        xt2, yt2, _ = sys.simulate_multistage(0.1, maxits=200, x0=1.0*x02, y0=1.0*y02)
+        xt3, yt3, _ = sys.simulate_multistage(0.1, maxits=200, x0=1.0*x03, y0=1.0*y03)
+        plot_triangle(x01, y01, x03, xt1, yt1, xt3, filename, multistage)
     else:
-        xt1, yt1, _ = sys.simulate(0.1, x0=x01, y0=y01)
-        xt2, yt2, _ = sys.simulate(0.1, x0=x02, y0=y02)
-        xt3, yt3, _ = sys.simulate(0.1, x0=x03, y0=y03)    
+        xt1, yt1, _ = sys.simulate(0.1, x0=1.0*x01, y0=1.0*y01)
+        xt2, yt2, _ = sys.simulate(0.1, x0=1.0*x02, y0=1.0*y02)
+        xt3, yt3, _ = sys.simulate(0.1, x0=1.0*x03, y0=1.0*y03)
+        plot_triangle(x01, x02, x03, xt1, xt2, xt3, f"{filename}_01", multistage)
+        plot_triangle(y01, y02, y03, yt1, yt2, yt3, f"{filename}_02", multistage)
 
-    plot_triangle(x01, x02, x03, xt1, xt2, xt3)
-    plot_triangle(y01, y02, y03, yt1, yt2, yt3)
-
-def plot_triangle(x01, x02, x03, xt1, xt2, xt3):
+def plot_triangle(x01, x02, x03, xt1, xt2, xt3, filename, multistage):
     # define a projection from the 3D simplex on a triangle
     proj = np.array(
     [[-1 * np.cos(30. / 360. * 2. * np.pi),np.cos(30. / 360. * 2. * np.pi),0.],
@@ -34,9 +35,9 @@ def plot_triangle(x01, x02, x03, xt1, xt2, xt3):
     PBd3 = proj@np.array([ts,0*ts,(1-ts)])
 
     # project the orbits on the triangle
-    orbittriangle1=proj@xt1.T
-    orbittriangle2=proj@xt2.T
-    orbittriangle3=proj@xt3.T
+    orbittriangle1=proj@xt1
+    orbittriangle2=proj@xt2
+    orbittriangle3=proj@xt3
     ic1=proj@x01
     ic2=proj@x02
     ic3=proj@x03
@@ -44,19 +45,23 @@ def plot_triangle(x01, x02, x03, xt1, xt2, xt3):
     plt.box(False)
     plt.axis(False)
     # plot the orbits, the initial values, the corner points, and the boundary points
-    plt.plot(orbittriangle1[0],orbittriangle1[1],".",markersize=1,color='green')
-    plt.plot(orbittriangle2[0],orbittriangle2[1],".",markersize=1,color='red')
-    plt.plot(orbittriangle3[0],orbittriangle3[1],".",markersize=1,color='blue')
+    plt.plot(orbittriangle1[0],orbittriangle1[1],"-",markersize=1,color='green')
+    plt.plot(orbittriangle2[0],orbittriangle2[1],"-",markersize=1,color='red')
     plt.plot(ic1[0],ic1[1],"+",markersize=10,color='green')
     plt.plot(ic2[0],ic2[1],"+",markersize=10,color='red')
-    plt.plot(ic3[0],ic3[1],"+",markersize=10,color='blue')
-    plt.text(-0.8660254-0.1, -0.5 +0.05 , "$e_1$",fontsize=12)
-    plt.text(+0.8660254+0.05, -0.5 +0.05 , "$e_2$",fontsize=12)
-    plt.text(0-0.03, 1 +0.1 , "$e_3$",fontsize=12)
+    if not multistage:
+        plt.plot(orbittriangle3[0],orbittriangle3[1],"-",markersize=1,color='blue')
+        plt.plot(ic3[0],ic3[1],"+",markersize=10,color='blue')
+    plt.text(-0.8660254-0.2, -0.5 +0.05 , "rock",fontsize=12)
+    plt.text(+0.8660254+0.05, -0.5 +0.05 , "paper",fontsize=12)
+    plt.text(0-0.1, 1 +0.1 , "scissors",fontsize=12)
     plt.plot(PBd1[0], PBd1[1], ".",color='black',markersize=3)
     plt.plot(PBd2[0], PBd2[1], ".",color='black',markersize=3)
     plt.plot(PBd3[0], PBd3[1], ".",color='black',markersize=3)
-    plt.savefig("Plots/flowportrait.pdf")
+
+
+    plt.savefig(f"{filename}.pdf")
+    plt.show()
 
 def q6_1():
     A = np.array([[6, 0], [4, 2]])
@@ -151,6 +156,8 @@ class RPS(ql.QLD):
         else:
             b_en = 1.0 * b
 
+        print(b_en)
+
 
         self.eps = (eps_x, eps_y)
         self.b = b_en
@@ -211,6 +218,8 @@ class RPS(ql.QLD):
         ts = [0]
         t = 0
 
+        b = self.b
+
         for i in range(maxits):
             dx, dy = self.step(dt, x0, y0)
 
@@ -219,12 +228,12 @@ class RPS(ql.QLD):
                 break
 
             xs[:, i+1] = x0
-            ys[:, i+1] = x0
+            ys[:, i+1] = y0
             t += dt
             ts.append(t)
 
-            rand_x = np.random.choice(2, p=x0)
-            rand_y = np.random.choice(2, p=y0)
+            rand_x = np.random.choice(3, p=x0)
+            rand_y = np.random.choice(3, p=y0)
             
             if rand_x != rand_y:
                 if rand_x % 3 == (rand_y + 1) % 3:
@@ -239,6 +248,8 @@ class RPS(ql.QLD):
                     else:
                         b = np.ones(3)
                         b[rand_y] += 1
+            
+            self.set_b(b)
 
             if (i + 1) % 100 == 0 and self.verbose:
                 print(f"{i+1}/{maxits}")
@@ -250,24 +261,64 @@ def sec3():
     # todo: generate plots of how equilibria move from varying eps, b, and T respectively
 
 
-    eps_def = 0
-    b_def = 0
-    T_def = 0.5
+    eps_def = 0.0
+    b_def = 1.0
+    T_def = 0.2
 
-    x0s = (
-        np.array([])
-    )
+    x01 = np.array([0.01, 0.495, 0.495])
+    x02 = np.array([0.495, 0.01, 0.495])
+    x03 = np.array([0.495, 0.495, 0.01])
 
-    sys = RPS(EPS[0], EPS[1], B, T[0], T[1])
-    x, y, t = sys.simulate(0.1, x0=x0, y0=y0)
-    print(x)
-    print(y)
+    y01 = np.array([0.495, 0.01, 0.495])
+    y02 = np.array([0.495, 0.495, 0.01])
+    y03 = np.array([0.01, 0.495, 0.495])
+
+    sys = RPS(eps_def, eps_def, b_def, T_def, T_def)
+
+    plot_helper(sys, x01, x02, x03, y01, y02, y03, "mod_rps")
+
+def sec3_2():
+    # todo: generate plots of how equilibria move from varying eps, b, and T respectively
+
+
+    eps_def = 0.0
+    b_def = 5.0
+    T_def = 0.2
+
+    x01 = np.array([0.01, 0.495, 0.495])
+    x02 = np.array([0.495, 0.01, 0.495])
+    x03 = np.array([0.495, 0.495, 0.01])
+
+    y01 = np.array([0.495, 0.01, 0.495])
+    y02 = np.array([0.495, 0.495, 0.01])
+    y03 = np.array([0.01, 0.495, 0.495])
+
+    sys = RPS(eps_def, eps_def, b_def, T_def, T_def)
+
+    plot_helper(sys, x01, x02, x03, y01, y02, y03, "mod_rps_b_5")
 
 
 def sec4():
     # todo: make game where successive wins with the same 
-    raise NotImplementedError
+
+    eps_def = 0.0
+    b_def = 1.0
+    T_def = 0.5
+
+    x01 = np.array([0.01, 0.495, 0.495])
+    x02 = np.array([0.495, 0.01, 0.495])
+    x03 = np.array([0.495, 0.495, 0.01])
+
+    y01 = np.array([0.495, 0.01, 0.495])
+    y02 = np.array([0.495, 0.495, 0.01])
+    y03 = np.array([0.01, 0.495, 0.495])
+
+    sys = RPS(eps_def, eps_def, b_def, T_def, T_def)
+
+    plot_helper(sys, x01, x02, x03, y01, y02, y03, "multistage", multistage=True)
 
 # q6_1()
-q6_2()
-# sec3()
+# q6_2()
+sec3()
+#sec3_2()
+# sec4()
